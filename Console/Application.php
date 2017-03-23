@@ -2,7 +2,8 @@
 
 namespace JMS\JobQueueBundle\Console;
 
-declare(ticks = 10000000);
+//RANQUEST CHANGE: We don't have a tick function anymore, so we comment this out.
+//declare(ticks = 10000000);
 
 use Doctrine\DBAL\Statement;
 use Doctrine\DBAL\Types\Type;
@@ -33,7 +34,9 @@ class Application extends BaseApplication
         $kernel->boot();
         if ($kernel->getContainer()->getParameter('jms_job_queue.statistics')) {
             $this->insertStatStmt = "INSERT INTO jms_job_statistics (job_id, characteristic, createdAt, charValue) VALUES (:jobId, :name, :createdAt, :value)";
-            register_tick_function(array($this, 'onTick'));
+
+            //RANQUEST CHANGE: We had problem in onTick function ($this->input was null), now I switch this off instead of checking whether input is null
+            //register_tick_function(array($this, 'onTick'));
         }
     }
 
@@ -47,7 +50,10 @@ class Application extends BaseApplication
 
             return $rs;
         } catch (\Exception $ex) {
-            $this->saveDebugInformation($ex);
+            //RANQUEST CHANGE: We don't let saveDebugInformation throw an exception if it can't connect to mysql, because it would hide the current exception
+            try {
+                $this->saveDebugInformation($ex);
+            } catch(\Exception $e){}
 
             throw $ex;
         }

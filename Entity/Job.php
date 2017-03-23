@@ -25,12 +25,15 @@ use JMS\JobQueueBundle\Exception\LogicException;
 use Symfony\Component\Debug\Exception\FlattenException;
 
 /**
+ * RANQUEST CHANGE: Many places in this file, see the git change log.
+ *
  * @ORM\Entity(repositoryClass = "JMS\JobQueueBundle\Entity\Repository\JobRepository")
  * @ORM\Table(name = "jms_jobs", indexes = {
  *     @ORM\Index("cmd_search_index", columns = {"command"}),
  *     @ORM\Index("sorting_index", columns = {"state", "priority", "id"}),
  * })
  * @ORM\ChangeTrackingPolicy("DEFERRED_EXPLICIT")
+ * @ORM\EntityListeners({"JMS\JobQueueBundle\Entity\Listener\JobListener"})
  *
  * @author Johannes M. Schmitt <schmittjoh@gmail.com>
  */
@@ -126,7 +129,7 @@ class Job
     private $args;
 
     /**
-     * @ORM\ManyToMany(targetEntity = "Job", fetch = "EAGER")
+     * @ORM\ManyToMany(targetEntity = "Job", inversedBy="incomingDependencies", fetch = "EAGER")
      * @ORM\JoinTable(name="jms_job_dependencies",
      *     joinColumns = { @ORM\JoinColumn(name = "source_job_id", referencedColumnName = "id") },
      *     inverseJoinColumns = { @ORM\JoinColumn(name = "dest_job_id", referencedColumnName = "id")}
@@ -143,8 +146,9 @@ class Job
     /** @ORM\Column(type = "smallint", name="exitCode", nullable = true, options = {"unsigned": true}) */
     private $exitCode;
 
+    //RANQUEST CHANGE: By default we set 10 min maximum runtime for all jobs.
     /** @ORM\Column(type = "smallint", name="maxRuntime", options = {"unsigned": true}) */
-    private $maxRuntime = 0;
+    private $maxRuntime = 600;
 
     /** @ORM\Column(type = "smallint", name="maxRetries", options = {"unsigned": true}) */
     private $maxRetries = 0;
@@ -169,6 +173,42 @@ class Job
 
     /** @ORM\Column(type = "integer", name="memoryUsageReal", nullable = true, options = {"unsigned": true}) */
     private $memoryUsageReal;
+
+    /* RANQUEST CHANGES START */
+
+    /**
+     * @ORM\OneToMany(targetEntity = "Job", mappedBy="owner")
+     */
+    private $childList;
+
+    /**
+     * @ORM\ManyToOne(targetEntity = "Job", inversedBy = "childList", fetch = "EAGER")
+     * @ORM\JoinColumn(nullable=true)
+     */
+    private $owner;
+
+    /**
+     * @ORM\Column(type="text", nullable = true)
+     */
+    private $inputData;
+
+    /**
+     * @ORM\Column(type="text", nullable = true)
+     */
+    private $outputData;
+
+    /**
+     * @ORM\Column(type="float", nullable = true)
+     */
+    private $progressPercentage;
+
+    /**
+     *  @ORM\ManyToMany(targetEntity = "Job", mappedBy="dependencies", fetch = "EAGER")
+     *  @var Job[]
+     */
+    private $incomingDependencies;
+
+    /* RANQUEST CHANGES END */
 
     /**
      * This may store any entities which are related to this job, and are
@@ -208,6 +248,7 @@ class Job
         $this->dependencies = new ArrayCollection();
         $this->retryJobs = new ArrayCollection();
         $this->relatedEntities = new ArrayCollection();
+        $this->incomingDependencies = new ArrayCollection();
     }
 
     public function __clone()
@@ -406,6 +447,12 @@ class Job
         }
 
         $this->dependencies->add($job);
+        $job->getIncomingDependencies()->add($this);
+    }
+
+    public function removeDependency(Job $job)
+    {
+        $this->dependencies->removeElement($job);
     }
 
     public function getRuntime()
@@ -639,10 +686,133 @@ class Job
             return false;
         }
 
+        /**
+         * RANQUEST CHANGE: We needed to add dependency to a canceled job in auto watching
+         */
+        if (self::STATE_CANCELED === $this->state) {
+            return false;
+        }
+
         if (self::STATE_PENDING === $this->state && ! $this->isStartable()) {
             return false;
         }
 
         return true;
     }
+
+    /* RANQUEST CHANGES START */
+
+    /**
+     * Set inputData
+     *
+     * @param string $inputData
+     * @return Job
+     */
+    public function setInputData($inputData)
+    {
+        $this->inputData = $inputData;
+
+        return $this;
+    }
+
+    /**
+     * Get inputData
+     *
+     * @return string
+     */
+    public function getInputData()
+    {
+        return $this->inputData;
+    }
+
+    /**
+     * Set outputData
+     *
+     * @param string $outputData
+     * @return Job
+     */
+    public function setOutputData($outputData)
+    {
+        $this->outputData = $outputData;
+
+        return $this;
+    }
+
+    /**
+     * Get outputData
+     *
+     * @return string
+     */
+    public function getOutputData()
+    {
+        return $this->outputData;
+    }
+
+    /**
+     * Set progressPercentage
+     *
+     * @param float $progressPercentage
+     * @return Job
+     */
+    public function setProgressPercentage($progressPercentage)
+    {
+        $this->progressPercentage = $progressPercentage;
+
+        return $this;
+    }
+
+    /**
+     * Get progressPercentage
+     *
+     * @return float
+     */
+    public function getProgressPercentage()
+    {
+        return $this->progressPercentage;
+    }
+
+    /**
+     * @return Job[]|ArrayCollection
+     */
+    public function getIncomingDependencies()
+    {
+        return $this->incomingDependencies;
+    }
+
+    /**
+     * @return Job
+     */
+    public function getOwner()
+    {
+        return $this->owner;
+    }
+
+    /**
+     * @param Job|null $job
+     */
+    public function setOwner($job)
+    {
+        $this->owner = $job;
+    }
+
+    /**
+     * @return Job[]
+     */
+    public function getChildList()
+    {
+        return $this->childList;
+    }
+
+    /**
+     * @param Job $job
+     * @return Job
+     */
+    public function addChild(Job $job)
+    {
+        $this->childList[] = $job;
+
+        return $this;
+    }
+
+    /* RANQUEST CHANGES END */
 }
