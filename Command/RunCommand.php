@@ -57,6 +57,9 @@ class RunCommand extends \Symfony\Bundle\FrameworkBundle\Command\ContainerAwareC
     /** @var bool */
     private $shouldShutdown = false;
 
+    /** @var \Exception */
+    private $lastException;
+
     private $consoleFile;
 
     protected function configure()
@@ -163,11 +166,20 @@ class RunCommand extends \Symfony\Bundle\FrameworkBundle\Command\ContainerAwareC
                 break;
             }
 
-            $this->checkRunningJobs();
-            $this->startJobs($workerName, $idleTime, $maxJobs, $restrictedQueues, $queueOptionsDefaults, $queueOptions);
+            try {
+                $this->checkRunningJobs();
+                $this->startJobs($workerName, $idleTime, $maxJobs, $restrictedQueues, $queueOptionsDefaults, $queueOptions);
 
-            $waitTimeInMs = mt_rand(500, 1000);
-            usleep($waitTimeInMs * 1E3);
+                $waitTimeInMs = mt_rand(500, 1000);
+                usleep($waitTimeInMs * 1E3);
+            } catch (\Exception $ex){
+                if ($this->verbose) {
+                    $this->output->writeln(sprintf('Exception happened in the main process: %s', $ex->getMessage()));
+                }
+
+                $this->lastException = $ex;
+                $this->shouldShutdown = true;
+            }
         }
 
         if ($this->verbose) {
@@ -177,6 +189,14 @@ class RunCommand extends \Symfony\Bundle\FrameworkBundle\Command\ContainerAwareC
         while ( ! empty($this->runningJobs)) {
             sleep(5);
             $this->checkRunningJobs();
+        }
+
+        if ($this->lastException){
+            if ($this->verbose) {
+                $this->output->writeln('Throwing original exception, exiting.');
+            }
+
+            throw $this->lastException;
         }
 
         if ($this->verbose) {
