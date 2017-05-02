@@ -188,7 +188,21 @@ class RunCommand extends \Symfony\Bundle\FrameworkBundle\Command\ContainerAwareC
 
         while ( ! empty($this->runningJobs)) {
             sleep(5);
-            $this->checkRunningJobs();
+            try {
+                $this->checkRunningJobs();
+            } catch (\Exception $e){
+                if ($this->verbose) {
+                    $this->output->writeln(sprintf('Error happened during shutdown sequence: %s', $e->getMessage()));
+                }
+
+                //TODO: We need to wait until there are running jobs,
+                // now we just want to see what caused the exception in the shutdown sequence
+                $message = sprintf('Error happened during jobqueue\'s shutdown sequence: %s', $e->getMessage());
+                if ($this->lastException){
+                    $message .= sprintf(', Exception in the main loop: %s', $this->lastException->getMessage());
+                }
+                throw new \Exception($message, 0, $this->lastException);
+            }
         }
 
         if ($this->lastException){
