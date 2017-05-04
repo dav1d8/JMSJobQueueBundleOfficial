@@ -208,6 +208,11 @@ class Job
      */
     private $incomingDependencies;
 
+    /**
+     * @ORM\Column(type="boolean", nullable = true)
+     */
+    private $isFlushed = null;
+
     /* RANQUEST CHANGES END */
 
     /**
@@ -812,6 +817,22 @@ class Job
         $this->childList[] = $job;
 
         return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function getIsFlushed()
+    {
+        return $this->isFlushed;
+    }
+
+    /**
+     * @param bool $flushed
+     */
+    public function setIsFlushed($flushed)
+    {
+        $this->isFlushed = $flushed;
     }
 
     /* RANQUEST CHANGES END */
