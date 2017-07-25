@@ -69,7 +69,9 @@ class JobListener
         foreach ($dependencies as $dependency) {
             if ($em->getUnitOfWork()->getEntityState($dependency) == UnitOfWork::STATE_DETACHED) {
                 $job->getDependencies()->removeElement($dependency);
-                $job->getDependencies()->add($em->getReference('JMSJobQueueBundle:Job', $dependency->getId()));
+                $dependentJob = $em->getReference('JMSJobQueueBundle:Job', $dependency->getId());
+                $job->getDependencies()->add($dependentJob);
+                $em->refresh($dependentJob);
             }
         }
     }
@@ -88,7 +90,9 @@ class JobListener
         foreach ($incomingDependencies as $incomingDependency) {
             if ($em->getUnitOfWork()->getEntityState($incomingDependency) == UnitOfWork::STATE_DETACHED) {
                 $job->getIncomingDependencies()->removeElement($incomingDependency);
-                $job->getIncomingDependencies()->add($em->getReference('JMSJobQueueBundle:Job', $incomingDependency->getId()));
+                $incomingDependentJob = $em->getReference('JMSJobQueueBundle:Job', $incomingDependency->getId());
+                $job->getIncomingDependencies()->add($incomingDependentJob);
+                $em->refresh($incomingDependentJob);
             }
         }
     }
