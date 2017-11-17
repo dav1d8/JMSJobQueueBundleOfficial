@@ -31,6 +31,8 @@ use Symfony\Component\Debug\Exception\FlattenException;
  * @ORM\Table(name = "jms_jobs", indexes = {
  *     @ORM\Index("cmd_search_index", columns = {"command"}),
  *     @ORM\Index("sorting_index", columns = {"state", "priority", "id"}),
+ *     @ORM\Index("IDX_QUERY_PENDING", columns = {"executeAfter", "state"}),
+ *     @ORM\Index("IDX_QUEUE", columns = {"queue"}),
  * })
  * @ORM\ChangeTrackingPolicy("DEFERRED_EXPLICIT")
  * @ORM\EntityListeners({"JMS\JobQueueBundle\Entity\Listener\JobListener"})
