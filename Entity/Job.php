@@ -19,9 +19,12 @@
 namespace JMS\JobQueueBundle\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping as ORM;
 use JMS\JobQueueBundle\Exception\InvalidStateTransitionException;
 use JMS\JobQueueBundle\Exception\LogicException;
+use Naex\Bundle\FrameworkBundle\DependencyInjection\ContainerService;
+use Naex\Vendor\JMS\JobQueueBundle\Entity\JobData;
 use Symfony\Component\Debug\Exception\FlattenException;
 
 /**
@@ -738,7 +741,15 @@ class Job
      */
     public function setOutputData($outputData)
     {
-        $this->outputData = $outputData;
+        /** @var EntityManager $em */
+        $em = ContainerService::getContainer()->getManager();
+        $jobData = $em->getRepository('NaexVendorJMSJobQueueBundle:JobData')->find($this->id);
+        if (!$jobData) {
+            $jobData = new JobData();
+            $jobData->setJobId($this->id);
+        }
+        $jobData->setOutputData($outputData);
+        $em->persist($jobData);
 
         return $this;
     }
@@ -750,7 +761,11 @@ class Job
      */
     public function getOutputData()
     {
-        return $this->outputData;
+        /** @var EntityManager $em */
+        $em = ContainerService::getContainer()->getManager();
+        $jobData = $em->getRepository('NaexVendorJMSJobQueueBundle:JobData')->find($this->id);
+
+        return $jobData->getOutputData();
     }
 
     /**
