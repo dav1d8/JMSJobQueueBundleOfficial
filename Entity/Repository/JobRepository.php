@@ -350,6 +350,7 @@ class JobRepository extends EntityRepository
                 foreach ($this->findIncomingDependencies($job) as $dep) {
                     // This is a safe-guard to avoid blowing up if there is a database inconsistency.
                     if ( ! $dep->isPending() && ! $dep->isNew()) {
+                        $visited[] = $dep;
                         continue;
                     }
 
